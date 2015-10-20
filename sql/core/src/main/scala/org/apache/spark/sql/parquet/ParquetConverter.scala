@@ -183,6 +183,7 @@ private[parquet] abstract class CatalystConverter extends GroupConverter {
    */
   protected[parquet] val parent: CatalystConverter
 
+
   /**
    * Called by child converters to update their value in its parent (this).
    * Note that if possible the more specific update methods below should be used
@@ -239,6 +240,8 @@ private[parquet] abstract class CatalystConverter extends GroupConverter {
    * @return
    */
   def getCurrentRecord: Row = throw new UnsupportedOperationException
+
+  def getCurrentReordId: Int = throw new UnsupportedOperationException
 
   /**
    * Read a decimal value from a Parquet Binary into "dest". Only supports decimals that fit in
@@ -306,6 +309,7 @@ private[parquet] class CatalystGroupConverter(
     }.toArray
 
   override val size = schema.size
+  val ridIndex = schema.indexWhere(_.name == "rid")
 
   override def getCurrentRecord: Row = {
     assert(isRootConverter, "getCurrentRecord should only be called in root group converter!")
@@ -314,6 +318,12 @@ private[parquet] class CatalystGroupConverter(
     // fully processed. Therefore it will be difficult to use mutable rows instead, since
     // any non-root converter never would be sure when it would be safe to re-use the buffer.
     new GenericRow(current.toArray)
+  }
+
+  override def getCurrentReordId: Int = {
+    assert(isRootConverter, "getCurrentRecordId should only be called in root group converter!")
+
+    current(ridIndex).asInstanceOf[Int]
   }
 
   override def getConverter(fieldIndex: Int): Converter = converters(fieldIndex)
@@ -370,8 +380,15 @@ private[parquet] class CatalystPrimitiveRowConverter(
 
   override val parent = null
 
+  val ridIndex = schema.indexWhere(_.name == "rid")
+
+
   // Should be only called in root group converter!
   override def getCurrentRecord: Row = current
+
+  override def getCurrentReordId: Int = {
+    current.getAs[Int](ridIndex)
+  }
 
   override def getConverter(fieldIndex: Int): Converter = converters(fieldIndex)
 

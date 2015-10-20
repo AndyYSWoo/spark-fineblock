@@ -454,6 +454,10 @@ private[sql] object ParquetRelation2 extends Logging {
     val conf = job.getConfiguration
     conf.set(ParquetInputFormat.READ_SUPPORT_CLASS, classOf[RowReadSupport].getName())
 
+    println("ifpushdown: " + parquetFilterPushDown)
+    println("filters: ")
+    filters.foreach(println)
+
     // Try to push down filters when filter push-down is enabled.
     if (parquetFilterPushDown) {
       filters
@@ -476,6 +480,10 @@ private[sql] object ParquetRelation2 extends Logging {
 
     // Tell FilteringParquetRowInputFormat whether it's okay to cache Parquet and FS metadata
     conf.set(SQLConf.PARQUET_CACHE_METADATA, useMetadataCache.toString)
+
+
+    // Code below is for aggressive skipping
+    conf.setBoolean("parquet.column.crack", true)
   }
 
   /** This closure sets input paths at the driver side. */

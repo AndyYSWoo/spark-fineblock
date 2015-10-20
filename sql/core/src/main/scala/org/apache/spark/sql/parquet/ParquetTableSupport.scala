@@ -20,15 +20,19 @@ package org.apache.spark.sql.parquet
 import java.util.{HashMap => JHashMap}
 
 import org.apache.hadoop.conf.Configuration
+import org.apache.spark.deploy.SparkHadoopUtil
 import parquet.column.ParquetProperties
 import parquet.hadoop.ParquetOutputFormat
 import parquet.hadoop.api.ReadSupport.ReadContext
 import parquet.hadoop.api.{ReadSupport, WriteSupport}
 import parquet.io.api._
-import parquet.schema.MessageType
+import parquet.schema.Type.Repetition
+import parquet.schema.{MessageTypeParser, MessageType}
+
+import scala.collection.JavaConversions._
 
 import org.apache.spark.Logging
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Row}
+import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
 
 /**
@@ -39,12 +43,16 @@ import org.apache.spark.sql.types._
 private[parquet] class RowRecordMaterializer(root: CatalystConverter)
   extends RecordMaterializer[Row] {
 
-  def this(parquetSchema: MessageType, attributes: Seq[Attribute]) =
+  def this(parquetSchema: MessageType, attributes: Seq[Attribute]) = {
     this(CatalystConverter.createRootConverter(parquetSchema, attributes))
+  }
 
   override def getCurrentRecord: Row = root.getCurrentRecord
 
   override def getRootConverter: GroupConverter = root.asInstanceOf[GroupConverter]
+
+  override def getCurrentRecordId: Int = root.getCurrentReordId
+
 }
 
 /**
@@ -62,21 +70,38 @@ private[parquet] class RowReadSupport extends ReadSupport[Row] with Logging {
     val parquetSchema = readContext.getRequestedSchema
     var schema: Seq[Attribute] = null
 
-    if (readContext.getReadSupportMetadata != null) {
+    if (SparkHadoopUtil.get.conf.getBoolean("parquet.column.crack", false)
+      && parquetSchema != null) {
+      // for cracking only
+      val readSchema = ParquetTypesConverter.convertFromString(
+        readContext.getReadSupportMetadata.get(RowReadSupport.SPARK_ROW_REQUESTED_SCHEMA))
+      println("[ParquetTableSupport]read Schema: " + readSchema)
+      println("[ParquetTableSupport]parquet Schema: " + parquetSchema)
+
+      schema = parquetSchema
+        .asGroupType
+        .getFields
+        .map(
+          field => {
+            if (field.getName == "rid") {
+              new AttributeReference(field.getName, IntegerType, false)()
+            } else {
+              readSchema.filter(x => (field.getName == x.name))(0)
+            }
+          }
+        )
+    } else if (readContext.getReadSupportMetadata != null) {
       // first try to find the read schema inside the metadata (can result from projections)
-      if (
-        readContext
+      if (readContext
           .getReadSupportMetadata
           .get(RowReadSupport.SPARK_ROW_REQUESTED_SCHEMA) != null) {
         schema = ParquetTypesConverter.convertFromString(
           readContext.getReadSupportMetadata.get(RowReadSupport.SPARK_ROW_REQUESTED_SCHEMA))
-      } else {
+      } else if (readContext.getReadSupportMetadata.get(RowReadSupport.SPARK_METADATA_KEY) != null) {
         // if unavailable, try the schema that was read originally from the file or provided
         // during the creation of the Parquet relation
-        if (readContext.getReadSupportMetadata.get(RowReadSupport.SPARK_METADATA_KEY) != null) {
           schema = ParquetTypesConverter.convertFromString(
             readContext.getReadSupportMetadata.get(RowReadSupport.SPARK_METADATA_KEY))
-        }
       }
     }
     // if both unavailable, fall back to deducing the schema from the given Parquet schema

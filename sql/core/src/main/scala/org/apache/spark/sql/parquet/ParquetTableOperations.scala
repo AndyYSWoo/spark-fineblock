@@ -21,7 +21,9 @@ import java.io.IOException
 import java.lang.{Long => JLong}
 import java.text.{NumberFormat, SimpleDateFormat}
 import java.util.concurrent.{Callable, TimeUnit}
-import java.util.{Date, List => JList}
+import java.util.{List => JList, BitSet, Date}
+
+import org.apache.spark.deploy.SparkHadoopUtil
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -39,7 +41,7 @@ import parquet.hadoop.api.{InitContext, ReadSupport}
 import parquet.hadoop.metadata.GlobalMetaData
 import parquet.hadoop.util.ContextUtil
 import parquet.io.ParquetDecodingException
-import parquet.schema.MessageType
+import parquet.schema.{MessageTypeParser, MessageType}
 
 import org.apache.spark.annotation.DeveloperApi
 import org.apache.spark.mapred.SparkHadoopMapRedUtil
@@ -543,6 +545,9 @@ private[parquet] class FilteringParquetRowInputFormat
     var rowGroupsDropped: Long = 0
     var totalRowGroups: Long = 0
 
+    var totalValuesToRead: Long = 0
+    var totalRidsToRead: Long = 0
+
     // Ugly hack, stuck with it until PR:
     // https://github.com/apache/incubator-parquet-mr/pull/17
     // is resolved
@@ -559,33 +564,76 @@ private[parquet] class FilteringParquetRowInputFormat
       val parquetMetaData = footer.getParquetMetadata
       val blocks = parquetMetaData.getBlocks
       totalRowGroups = totalRowGroups + blocks.size
-      val filteredBlocks = RowGroupFilter.filterRowGroups(
+
+      val schemaString = readContext
+        .getReadSupportMetadata
+        .get(RowReadSupport.SPARK_ROW_REQUESTED_SCHEMA)
+
+      val messageType = ParquetTypesConverter.convertFromAttributes(
+        ParquetTypesConverter.convertFromString(schemaString))
+
+      println("requested schema: " + messageType)
+
+      val preFilteredBlocks1 = RowGroupFilter.filterRowGroupsByColumns(blocks, messageType)
+      val bitSetString: String = SparkHadoopUtil.get.conf.get("parquet.filter.bitset", "")
+      var bitSetFilter: BitSet = null
+      if (bitSetString != "") {
+        bitSetFilter = new BitSet()
+        val bits: Array[String] = bitSetString.split(",")
+        for (b <- bits) {
+          val bit: Int = b.toInt
+          bitSetFilter.set(bit)
+        }
+      }
+
+      val preFilteredBlocks2 = RowGroupFilter.filterRowGroupsByVectors(preFilteredBlocks1, bitSetFilter)
+      val filteredBlocks1 = RowGroupFilter.filterRowGroups(
         filter,
-        blocks,
+        preFilteredBlocks2,
         parquetMetaData.getFileMetaData.getSchema)
+      val filteredBlocks = RowGroupFilter.filterRowGroupsByAbsentColumns(filteredBlocks1, messageType)
       rowGroupsDropped = rowGroupsDropped + (blocks.size - filteredBlocks.size)
 
       if (!filteredBlocks.isEmpty){
-          var blockLocations: Array[BlockLocation] = null
-          if (!cacheMetadata) {
-            blockLocations = fs.getFileBlockLocations(status, 0, status.getLen)
-          } else {
-            blockLocations = blockLocationCache.get(status, new Callable[Array[BlockLocation]] {
-              def call(): Array[BlockLocation] = fs.getFileBlockLocations(status, 0, status.getLen)
-            })
+        val singleGroup = SparkHadoopUtil.get.conf.getBoolean("parquet.column.single", false)
+        for (block <- filteredBlocks) {
+          val columns = block.getColumns
+          var colsRead = 0
+          for (column <- columns) {
+            val colName = column.getPath.toDotString
+            val path: Array[String] = colName.split("\\.")
+            if (messageType.containsPath(path)) {
+              colsRead += 1
+            }
           }
-          splits.addAll(
-            generateSplits.invoke(
-              null,
-              filteredBlocks,
-              blockLocations,
-              status,
-              readContext.getRequestedSchema.toString,
-              readContext.getReadSupportMetadata,
-              minSplitSize,
-              maxSplitSize).asInstanceOf[JList[ParquetInputSplit]])
+          totalValuesToRead += colsRead * block.getRowCount
+          if (!singleGroup && colsRead > 0)
+          totalRidsToRead += block.getRowCount
         }
+
+        var blockLocations: Array[BlockLocation] = null
+        if (!cacheMetadata) {
+          blockLocations = fs.getFileBlockLocations(status, 0, status.getLen)
+        } else {
+          blockLocations = blockLocationCache.get(status, new Callable[Array[BlockLocation]] {
+            def call(): Array[BlockLocation] = fs.getFileBlockLocations(status, 0, status.getLen)
+          })
+        }
+        splits.addAll(
+          generateSplits.invoke(
+            null,
+            filteredBlocks,
+            blockLocations,
+            status,
+            readContext.getRequestedSchema.toString,
+            readContext.getReadSupportMetadata,
+            minSplitSize,
+            maxSplitSize).asInstanceOf[JList[ParquetInputSplit]])
+      }
     }
+
+    SparkHadoopUtil.get.conf.setLong("parquet.read.count.val", totalValuesToRead)
+    SparkHadoopUtil.get.conf.setLong("parquet.read.count.rid", totalRidsToRead)
 
     if (rowGroupsDropped > 0 && totalRowGroups > 0){
       val percentDropped = ((rowGroupsDropped/totalRowGroups.toDouble) * 100).toInt
