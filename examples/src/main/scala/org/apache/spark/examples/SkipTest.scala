@@ -45,14 +45,14 @@ object SkipTest {
 
     val queryPath: String = parentPath + "/metadata.workload/newtest10-nodate"
     val colGroups = scala.io.Source.fromFile(parentPath + "/metadata.grouping").getLines
-    val resultPath: String = parentPath + "/results/counts"
+    val outputPath: String = parentPath + "/results/"
 
     SparkHadoopUtil.get.conf.setBoolean("parquet.column.crack", true)
 
     val queryContent: String = new String(Files.readAllBytes(Paths.get(queryPath)))
     val queries: Array[String] = queryContent.split(";")
 
-    val outpath: java.io.File = new java.io.File(resultPath)
+    val outpath: java.io.File = new java.io.File(outputPath + "/counts")
     outpath.getParentFile.mkdirs
     val pw: PrintWriter = new java.io.PrintWriter(new FileWriter(outpath, true))
 
@@ -75,9 +75,10 @@ object SkipTest {
     data.registerTempTable("denorm")
     sqlContext.setConf("spark.sql.shuffle.partitions", "1")
     val startTime = System.currentTimeMillis
-    val res = sqlContext.sql(query)
-    println("res count: " + res.count())
+    val res = sqlContext.sql(query).collect
     val end2end = System.currentTimeMillis - startTime
+
+    val respath: java.io.File = new java.io.File(outputPath + "/" + queryName)
     val countValue = SparkHadoopUtil.get.conf.getLong("parquet.read.count.val", -1)
     println("count value: " + countValue)
     val countRid = SparkHadoopUtil.get.conf.getLong("parquet.read.count.rid", -1)
@@ -89,7 +90,11 @@ object SkipTest {
       end2end +
       "\n")
 
+    val pw2: PrintWriter = new java.io.PrintWriter(new FileWriter(respath, true))
+    res.map(_.toString).sortBy(x => x).foreach(x => pw2.write(x + "\n"))
+
     pw.close
+    pw2.close
   }
 
 //  def adhoc(): Unit = {

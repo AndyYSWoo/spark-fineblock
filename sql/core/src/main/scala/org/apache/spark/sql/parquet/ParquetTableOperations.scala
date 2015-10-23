@@ -572,8 +572,6 @@ private[parquet] class FilteringParquetRowInputFormat
       val messageType = ParquetTypesConverter.convertFromAttributes(
         ParquetTypesConverter.convertFromString(schemaString))
 
-      println("requested schema: " + messageType)
-
       val preFilteredBlocks1 = RowGroupFilter.filterRowGroupsByColumns(blocks, messageType)
       val bitSetString: String = SparkHadoopUtil.get.conf.get("parquet.filter.bitset", "")
       var bitSetFilter: BitSet = null
@@ -594,7 +592,7 @@ private[parquet] class FilteringParquetRowInputFormat
       val filteredBlocks = RowGroupFilter.filterRowGroupsByAbsentColumns(filteredBlocks1, messageType)
       rowGroupsDropped = rowGroupsDropped + (blocks.size - filteredBlocks.size)
 
-      if (!filteredBlocks.isEmpty){
+      if (!filteredBlocks.isEmpty) {
         val singleGroup = SparkHadoopUtil.get.conf.getBoolean("parquet.column.single", false)
         for (block <- filteredBlocks) {
           val columns = block.getColumns

@@ -75,8 +75,8 @@ private[parquet] class RowReadSupport extends ReadSupport[Row] with Logging {
       // for cracking only
       val readSchema = ParquetTypesConverter.convertFromString(
         readContext.getReadSupportMetadata.get(RowReadSupport.SPARK_ROW_REQUESTED_SCHEMA))
-      println("[ParquetTableSupport]read Schema: " + readSchema)
-      println("[ParquetTableSupport]parquet Schema: " + parquetSchema)
+      //println("[ParquetTableSupport]read Schema: " + readSchema)
+      //println("[ParquetTableSupport]parquet Schema: " + parquetSchema)
 
       schema = parquetSchema
         .asGroupType

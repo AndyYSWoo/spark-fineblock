@@ -480,10 +480,6 @@ private[sql] object ParquetRelation2 extends Logging {
 
     // Tell FilteringParquetRowInputFormat whether it's okay to cache Parquet and FS metadata
     conf.set(SQLConf.PARQUET_CACHE_METADATA, useMetadataCache.toString)
-
-
-    // Code below is for aggressive skipping
-    conf.setBoolean("parquet.column.crack", true)
   }
 
   /** This closure sets input paths at the driver side. */
