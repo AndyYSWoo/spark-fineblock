@@ -7,6 +7,7 @@ package org.apache.spark.examples
 import org.apache.spark.{SparkContext, SparkConf}
 import org.apache.spark.sql.SQLContext
 import org.apache.spark.sql.hive._
+import parquet.hadoop.util.counters.BenchmarkCounter
 
 object SkipTest {
   val sparkConf = new SparkConf().setAppName("Skip Test")
@@ -52,9 +53,9 @@ object SkipTest {
     val queryContent: String = new String(Files.readAllBytes(Paths.get(queryPath)))
     val queries: Array[String] = queryContent.split(";")
 
-    val outpath: java.io.File = new java.io.File(outputPath + "/counts")
-    outpath.getParentFile.mkdirs
-    val pw: PrintWriter = new java.io.PrintWriter(new FileWriter(outpath, true))
+    val statsPath: java.io.File = new java.io.File(outputPath + "/counts")
+    statsPath.getParentFile.mkdirs
+    val pw: PrintWriter = new java.io.PrintWriter(new FileWriter(statsPath, true))
 
     val query: String = queries(queryId).trim
     val lines: Array[String] = query.split("\n")
@@ -78,21 +79,28 @@ object SkipTest {
     val res = sqlContext.sql(query).collect
     val end2end = System.currentTimeMillis - startTime
 
-    val respath: java.io.File = new java.io.File(outputPath + "/" + queryName)
+    val loadTime = BenchmarkCounter.loadTimeCounter.getCount
+    val sortTime = BenchmarkCounter.sortTimeCounter.getCount
+
     val countValue = SparkHadoopUtil.get.conf.getLong("parquet.read.count.val", -1)
     println("count value: " + countValue)
     val countRid = SparkHadoopUtil.get.conf.getLong("parquet.read.count.rid", -1)
     println("count rid: " + countRid)
-    pw.write(queryName + "\t" +
-      (countValue + countRid) * weight +  "\t" +
-      countValue * weight + "\t" +
-      countRid * weight + "\t" +
-      end2end +
+    pw.write(
+      queryName + "\t" +
+      ((countValue + countRid) * weight).toLong +  "\t" +
+      (countValue * weight).toLong + "\t" +
+        (countRid * weight).toLong + "\t" +
+        (end2end * weight).toLong + "\t" +
+        (loadTime * weight).toLong + "\t" +
+        (sortTime * weight).toLong + "\t" +
       "\n")
 
+
+    val respath: java.io.File = new java.io.File(outputPath + "/" + queryName)
     val pw2: PrintWriter = new java.io.PrintWriter(new FileWriter(respath, true))
     res.map(_.toString).sortBy(x => x).foreach(x => pw2.write(x + "\n"))
-
+    
     pw.close
     pw2.close
   }
