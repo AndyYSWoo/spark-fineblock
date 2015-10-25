@@ -6,7 +6,6 @@ package org.apache.spark.examples
 
 import org.apache.spark.{SparkContext, SparkConf}
 import org.apache.spark.sql.SQLContext
-import org.apache.spark.sql.hive._
 import parquet.hadoop.util.counters.BenchmarkCounter
 
 object SkipTest {
@@ -72,7 +71,7 @@ object SkipTest {
     callPurge
     setConfParameters
     SparkHadoopUtil.get.conf.set("parquet.filter.bitset", filterString)
-    val data = sqlContext.read.parquet(parentPath + "/pq/data.parquet")
+    val data = sqlContext.read.parquet(parentPath + "/pq/")
     data.registerTempTable("denorm")
     sqlContext.setConf("spark.sql.shuffle.partitions", "1")
     val startTime = System.currentTimeMillis
@@ -100,7 +99,7 @@ object SkipTest {
     val respath: java.io.File = new java.io.File(outputPath + "/" + queryName)
     val pw2: PrintWriter = new java.io.PrintWriter(new FileWriter(respath, true))
     res.map(_.toString).sortBy(x => x).foreach(x => pw2.write(x + "\n"))
-    
+
     pw.close
     pw2.close
   }
