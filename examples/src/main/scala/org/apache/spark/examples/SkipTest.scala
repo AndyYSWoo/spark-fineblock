@@ -79,7 +79,7 @@ object SkipTest {
     data.registerTempTable("denorm")
     sqlContext.setConf("spark.sql.shuffle.partitions", "1")
     val startTime = System.currentTimeMillis
-    val res = sqlContext.sql(query).collect
+    val res = sqlContext.sql(query).foreach(x => x)
     val end2end = System.currentTimeMillis - startTime
 
 //  val loadTime = BenchmarkCounter.loadTimeCounter.getCount
@@ -96,13 +96,12 @@ object SkipTest {
 //       (sortTime * weight).toLong + "\t" +
       "\n")
 
-
-    val respath: java.io.File = new java.io.File(outputPath + "/" + queryName)
-    val pw2: PrintWriter = new java.io.PrintWriter(new FileWriter(respath, true))
-    res.map(_.toString).sortBy(x => x).foreach(x => pw2.write(x + "\n"))
+   // val respath: java.io.File = new java.io.File(outputPath + "/" + queryName)
+   // val pw2: PrintWriter = new java.io.PrintWriter(new FileWriter(respath, true))
+  //  res.map(_.toString).sortBy(x => x).foreach(x => pw2.write(x + "\n"))
 
     pw.close
-    pw2.close
+   // pw2.close
   }
 
   def countCells(parentPath: String, queryId: Int): Unit = {
