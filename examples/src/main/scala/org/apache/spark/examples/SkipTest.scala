@@ -52,7 +52,7 @@ object SkipTest {
     val queryContent: String = new String(Files.readAllBytes(Paths.get(queryPath)))
     val queries: Array[String] = queryContent.split(";")
 
-    val statsPath: java.io.File = new java.io.File(outputPath + "/counts")
+    val statsPath: java.io.File = new java.io.File(outputPath + "/times")
     statsPath.getParentFile.mkdirs
     val pw: PrintWriter = new java.io.PrintWriter(new FileWriter(statsPath, true))
 
@@ -62,7 +62,9 @@ object SkipTest {
     val filterString: String = lines(0).substring(2)
     val columnString: String = lines(1).substring(2)
     val queryName: String = lines(3).substring(2)
-    val weight: Double = lines(2).substring(4).toDouble
+
+    //val weight: Double = lines(2).substring(4).toDouble
+    val weight = 1
 
     val countGroups = colGroups.filter(x => x.split(",").intersect(columnString.split(",")).size > 0).size
     if (countGroups == 1) {
@@ -78,21 +80,18 @@ object SkipTest {
     val res = sqlContext.sql(query).collect
     val end2end = System.currentTimeMillis - startTime
 
-    val loadTime = BenchmarkCounter.loadTimeCounter.getCount
-    val sortTime = BenchmarkCounter.sortTimeCounter.getCount
-
+//  val loadTime = BenchmarkCounter.loadTimeCounter.getCount
+//  val sortTime = BenchmarkCounter.sortTimeCounter.getCount
     val countValue = SparkHadoopUtil.get.conf.getLong("parquet.read.count.val", -1)
     println("count value: " + countValue)
     val countRid = SparkHadoopUtil.get.conf.getLong("parquet.read.count.rid", -1)
     println("count rid: " + countRid)
+
     pw.write(
       queryName + "\t" +
-      ((countValue + countRid) * weight).toLong +  "\t" +
-      (countValue * weight).toLong + "\t" +
-        (countRid * weight).toLong + "\t" +
-        (end2end * weight).toLong + "\t" +
-        (loadTime * weight).toLong + "\t" +
-        (sortTime * weight).toLong + "\t" +
+        (end2end * weight).toLong +
+//        (loadTime * weight).toLong + "\t" +
+//       (sortTime * weight).toLong + "\t" +
       "\n")
 
 
@@ -102,6 +101,69 @@ object SkipTest {
 
     pw.close
     pw2.close
+  }
+
+  def countCells(parentPath: String, queryId: Int): Unit = {
+    import java.io.{FileWriter, PrintWriter, File}
+    import java.nio.file.{Paths, Files}
+
+    val queryPath: String = parentPath + "_meta/metadata.workload/newtest10"
+    val colGroups = scala.io.Source.fromFile(parentPath + "_meta/metadata.grouping").getLines
+    val outputPath: String = parentPath + "_meta/results/"
+
+    SparkHadoopUtil.get.conf.setBoolean("parquet.column.crack", true)
+
+    val queryContent: String = new String(Files.readAllBytes(Paths.get(queryPath)))
+    val queries: Array[String] = queryContent.split(";")
+
+    val statsPath: java.io.File = new java.io.File(outputPath + "/counts")
+    statsPath.getParentFile.mkdirs
+    val pw: PrintWriter = new java.io.PrintWriter(new FileWriter(statsPath, true))
+
+    val query: String = queries(queryId).trim
+    val lines: Array[String] = query.split("\n")
+    println(query)
+    val filterString: String = lines(0).substring(2)
+    val columnString: String = lines(1).substring(2)
+    val queryName: String = lines(3).substring(2)
+    //val weight: Double = lines(2).substring(4).toDouble
+    val weight = 1
+
+
+    val countGroups = colGroups.filter(x => x.split(",").intersect(columnString.split(",")).size > 0).size
+    if (countGroups == 1) {
+      SparkHadoopUtil.get.conf.setBoolean("parquet.column.single", true)
+    }
+    callPurge
+    setConfParameters
+    SparkHadoopUtil.get.conf.set("parquet.filter.bitset", filterString)
+    sqlContext.setConf("spark.sql.shuffle.partitions", "1")
+
+    val dir = new java.io.File(parentPath)
+    var totValue = 0L
+    var totRid = 0L
+    for (path <- dir.listFiles) {
+      val data = sqlContext.read.parquet(parentPath)
+      sqlContext.sql("drop table if exists denorm")
+      data.registerTempTable("denorm")
+      val res = sqlContext.sql(query).collect
+      val countValue = SparkHadoopUtil.get.conf.getLong("parquet.read.count.val", -1)
+      println("count value: " + countValue)
+      val countRid = SparkHadoopUtil.get.conf.getLong("parquet.read.count.rid", -1)
+      println("count rid: " + countRid)
+
+      totValue += countValue
+      totRid += countRid
+    }
+
+    pw.write(
+      queryName + "\t" +
+        ((totValue + totRid) * weight).toLong +  "\t" +
+        (totValue * weight).toLong + "\t" +
+        (totRid * weight).toLong + "\t" +
+        "\n")
+
+    pw.close
   }
 
 //  def adhoc(): Unit = {
@@ -140,7 +202,11 @@ object SkipTest {
 //  }
 
   def main(args: Array[String]) {
-    val parentPath = args(0).reverse.dropWhile(_ == '/').reverse
-    testQuery(parentPath, args(1).toInt)
+    val parentPath = args(1).reverse.dropWhile(_ == '/').reverse
+    if (args(0) == "time") {
+      testQuery(parentPath, args(2).toInt)
+    } else {
+      countCells(parentPath, args(2).toInt)
+    }
   }
 }
