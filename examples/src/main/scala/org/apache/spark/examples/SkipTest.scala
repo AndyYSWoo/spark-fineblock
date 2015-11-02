@@ -5,8 +5,10 @@ package org.apache.spark.examples
  */
 
 import org.apache.spark.{SparkContext, SparkConf}
-import org.apache.spark.sql.SQLContext
+import org.apache.spark.sql.{DataFrame, SQLContext}
 import parquet.hadoop.util.counters.BenchmarkCounter
+
+import scala.collection.mutable.ArrayBuffer
 
 object SkipTest {
   val sparkConf = new SparkConf().setAppName("Skip Test")
@@ -134,7 +136,6 @@ object SkipTest {
     if (countGroups == 1) {
       SparkHadoopUtil.get.conf.setBoolean("parquet.column.single", true)
     }
-    callPurge
     setConfParameters
     SparkHadoopUtil.get.conf.set("parquet.filter.bitset", filterString)
     sqlContext.setConf("spark.sql.shuffle.partitions", "1")
@@ -142,15 +143,20 @@ object SkipTest {
     val dir = new java.io.File(parentPath)
     var totValue = 0L
     var totRid = 0L
+    val countValues = ArrayBuffer[Long]()
+    val countRids = ArrayBuffer[Long]()
+
     for (path <- dir.listFiles) {
       val data = sqlContext.read.parquet(path.getAbsolutePath)
-      sqlContext.sql("drop table if exists denorm")
       data.registerTempTable("denorm")
-      val res = sqlContext.sql(query).collect
+      sqlContext.sql(query).foreach(x => x)
       val countValue = SparkHadoopUtil.get.conf.getLong("parquet.read.count.val", -1)
       println("count value: " + countValue)
       val countRid = SparkHadoopUtil.get.conf.getLong("parquet.read.count.rid", -1)
       println("count rid: " + countRid)
+
+      countValues.append(countValue)
+      countRids.append(countRid)
 
       totValue += countValue
       totRid += countRid
@@ -161,12 +167,14 @@ object SkipTest {
         ((totValue + totRid) * weight).toLong +  "\t" +
         (totValue * weight).toLong + "\t" +
         (totRid * weight).toLong + "\t" +
+        (countValues.mkString(" ")) + "\t" +
+        (countRids.mkString(" ")) + "\t" +
         "\n")
 
     pw.close
   }
 
-//  def adhoc(): Unit = {
+////  def adhoc(): Unit = {
 //    SparkHadoopUtil.get.conf.setBoolean("parquet.task.side.metadata", false)
 //    SparkHadoopUtil.get.conf.set("mapred.min.split.size", "2000000000")
 //    SparkHadoopUtil.get.conf.setBoolean("parquet.column.crack", true)
@@ -198,15 +206,17 @@ object SkipTest {
 //      """.stripMargin)
 //
 //    res.foreach(println)
-//
+////
 //  }
 
   def main(args: Array[String]) {
     val parentPath = args(1).reverse.dropWhile(_ == '/').reverse
     if (args(0) == "time") {
       testQuery(parentPath, args(2).toInt)
-    } else {
+    } else if (args(0) == "count") {
       countCells(parentPath, args(2).toInt)
+    } else {
+      println("unknown command " + args(0))
     }
   }
 }
