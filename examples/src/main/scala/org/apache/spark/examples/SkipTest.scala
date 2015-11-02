@@ -26,14 +26,14 @@ object SkipTest {
 
   def callPurge(): Unit = {
     val c = System.getenv("MASTER")
-    val output = if (c == null || c == "local") {
-      Seq("bash", "-c", "purge").!
+    val output = if (c == null || c.startsWith("local")) {
+//      Seq("bash", "-c", "purge").!
+      Seq("sudo", "sh", "-c", "'echo 3 >/proc/sys/vm/drop_caches'").!
     } else {
       Seq("bin/clear-os-cache.py").!
     }
-
     if (output.toInt == 0) {
-      println("cleared OS cache by " + (if (c == null || c == "local") "purge" else "bin/clear-os-cache.py"))
+      println("cleared OS cache by " + (if (c == null || c == "local") "drop_caches" else "bin/clear-os-cache.py"))
     } else {
       println("failed to clear OS cache")
     }
@@ -43,9 +43,9 @@ object SkipTest {
     import java.io.{FileWriter, PrintWriter, File}
     import java.nio.file.{Paths, Files}
 
-    val queryPath: String = parentPath + "/metadata.workload/newtest10-nodate"
-    val colGroups = scala.io.Source.fromFile(parentPath + "/metadata.grouping").getLines
-    val outputPath: String = parentPath + "/results/"
+    val queryPath: String = parentPath + "_meta/metadata.workload/newtest10"
+    val colGroups = scala.io.Source.fromFile(parentPath + "_meta/metadata.grouping").getLines
+    val outputPath: String = parentPath + "_meta/results/"
 
     SparkHadoopUtil.get.conf.setBoolean("parquet.column.crack", true)
 
@@ -71,7 +71,7 @@ object SkipTest {
     callPurge
     setConfParameters
     SparkHadoopUtil.get.conf.set("parquet.filter.bitset", filterString)
-    val data = sqlContext.read.parquet(parentPath + "/pq/")
+    val data = sqlContext.read.parquet(parentPath)
     data.registerTempTable("denorm")
     sqlContext.setConf("spark.sql.shuffle.partitions", "1")
     val startTime = System.currentTimeMillis
@@ -140,6 +140,7 @@ object SkipTest {
 //  }
 
   def main(args: Array[String]) {
-    testQuery(args(0), args(1).toInt)
+    val parentPath = args(0).reverse.dropWhile(_ == '/').reverse
+    testQuery(parentPath, args(1).toInt)
   }
 }
