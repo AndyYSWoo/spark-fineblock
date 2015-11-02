@@ -143,7 +143,7 @@ object SkipTest {
     var totValue = 0L
     var totRid = 0L
     for (path <- dir.listFiles) {
-      val data = sqlContext.read.parquet(parentPath)
+      val data = sqlContext.read.parquet(path.getAbsolutePath)
       sqlContext.sql("drop table if exists denorm")
       data.registerTempTable("denorm")
       val res = sqlContext.sql(query).collect
