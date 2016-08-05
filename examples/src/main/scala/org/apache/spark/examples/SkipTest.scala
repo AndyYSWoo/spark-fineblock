@@ -349,14 +349,11 @@ object SkipTest {
 
       //format("parquet").save("/mnt3/bb1/bb1.parquet")
 
-//      select rankingsDF.pageURL, rankingsDF.pageRank, rankingsDF.avgDuration,     uservisitsDF.sourceIP, uservisitsDF.visitDate, uservisitsDF.adRevenue, uservisitsDF.userAgent,\n    uservisitsDF.countryCode, uservisitsDF.languageCode, uservisitsDF.searchWord, uservisitsDF.duration")
-
+//      select rankingsDF.pageURL, rankingsDF.pageRank, rankingsDF.avgDuration,uservisitsDF.sourceIP, uservisitsDF.visitDate, uservisitsDF.adRevenue, uservisitsDF.userAgent,\n    uservisitsDF.countryCode, uservisitsDF.languageCode, uservisitsDF.searchWord, uservisitsDF.duration")
 //
 //    val joined = rankingsDF.join(uservisitsDF, rankingsDF.pageURL == uservisitsDF.destURL).select(rankingsDF.pageURL, rankingsDF.pageRank, rankingsDF.avgDuration,
 //      uservisitsDF.sourceIP, uservisitsDF.visitDate, uservisitsDF.adRevenue, uservisitsDF.userAgent,
 //    uservisitsDF.countryCode, uservisitsDF.languageCode, uservisitsDF.searchWord, uservisitsDF.duration).cache()
-
-
   }
 
   def main(args: Array[String]) {

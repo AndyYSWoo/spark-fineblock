@@ -584,12 +584,16 @@ private[parquet] class FilteringParquetRowInputFormat
         }
       }
 
-      val preFilteredBlocks2 = RowGroupFilter.filterRowGroupsByVectors(preFilteredBlocks1, bitSetFilter)
+      val preFilteredBlocks2 = RowGroupFilter.filterRowGroupsByVectors(
+        preFilteredBlocks1,
+        bitSetFilter)
       val filteredBlocks1 = RowGroupFilter.filterRowGroups(
         filter,
         preFilteredBlocks2,
         parquetMetaData.getFileMetaData.getSchema)
-      val filteredBlocks = RowGroupFilter.filterRowGroupsByAbsentColumns(filteredBlocks1, messageType)
+      val filteredBlocks = RowGroupFilter.filterRowGroupsByAbsentColumns(
+        filteredBlocks1,
+        messageType)
       rowGroupsDropped = rowGroupsDropped + (blocks.size - filteredBlocks.size)
 
       if (!filteredBlocks.isEmpty) {
@@ -605,8 +609,9 @@ private[parquet] class FilteringParquetRowInputFormat
             }
           }
           totalValuesToRead += colsRead * block.getRowCount
-          if (!singleGroup && colsRead > 0)
-          totalRidsToRead += block.getRowCount
+          if (!singleGroup && colsRead > 0) {
+            totalRidsToRead += block.getRowCount
+          }
         }
 
         var blockLocations: Array[BlockLocation] = null

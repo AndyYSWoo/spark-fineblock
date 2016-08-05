@@ -75,8 +75,8 @@ private[parquet] class RowReadSupport extends ReadSupport[Row] with Logging {
       // for cracking only
       val readSchema = ParquetTypesConverter.convertFromString(
         readContext.getReadSupportMetadata.get(RowReadSupport.SPARK_ROW_REQUESTED_SCHEMA))
-      //println("[ParquetTableSupport]read Schema: " + readSchema)
-      //println("[ParquetTableSupport]parquet Schema: " + parquetSchema)
+      // println("[ParquetTableSupport]read Schema: " + readSchema)
+      // println("[ParquetTableSupport]parquet Schema: " + parquetSchema)
 
       schema = parquetSchema
         .asGroupType
@@ -97,7 +97,9 @@ private[parquet] class RowReadSupport extends ReadSupport[Row] with Logging {
           .get(RowReadSupport.SPARK_ROW_REQUESTED_SCHEMA) != null) {
         schema = ParquetTypesConverter.convertFromString(
           readContext.getReadSupportMetadata.get(RowReadSupport.SPARK_ROW_REQUESTED_SCHEMA))
-      } else if (readContext.getReadSupportMetadata.get(RowReadSupport.SPARK_METADATA_KEY) != null) {
+      } else if (readContext
+        .getReadSupportMetadata
+        .get(RowReadSupport.SPARK_METADATA_KEY) != null) {
         // if unavailable, try the schema that was read originally from the file or provided
         // during the creation of the Parquet relation
           schema = ParquetTypesConverter.convertFromString(
