@@ -74,7 +74,7 @@ object SkipTest {
     if (countGroups == 1) {
       SparkHadoopUtil.get.conf.setBoolean("parquet.column.single", true)
     }
-    callPurge
+  //  callPurge
     setConfParameters
     SparkHadoopUtil.get.conf.set("parquet.filter.bitset", filterString)
     val data = sqlContext.read.parquet(parentPath)
@@ -132,7 +132,7 @@ object SkipTest {
 
     SparkHadoopUtil.get.conf.setBoolean("parquet.column.single", true)
 
-    callPurge
+  //  callPurge
     setConfParameters
 
     val lineitemData = sqlContext.read.parquet(parentPath + "/lineitem")
