@@ -106,89 +106,6 @@ object SkipTest {
    // pw2.close
   }
 
-  def testQueryNorm(parentPath: String, queryId: Int): Unit = {
-    import java.io.{FileWriter, PrintWriter, File}
-    import java.nio.file.{Paths, Files}
-
-    val queryPath: String = parentPath + "_meta/metadata.workload/newtest1_norm"
-  //  val colGroups = scala.io.Source.fromFile(parentPath + "_meta/metadata.grouping").getLines
-    val outputPath: String = parentPath + "_meta/results/"
-
-   // SparkHadoopUtil.get.conf.setBoolean("parquet.column.crack", true)
-
-    val queryContent: String = new String(Files.readAllBytes(Paths.get(queryPath)))
-    val queries: Array[String] = queryContent.split(";")
-
-    val statsPath: java.io.File = new java.io.File(outputPath + "/times")
-    statsPath.getParentFile.mkdirs
-    val pw: PrintWriter = new java.io.PrintWriter(new FileWriter(statsPath, true))
-
-    val query: String = queries(queryId).trim
-    val lines: Array[String] = query.split("\n")
-    println(query)
-    val queryName: String = lines(1).substring(2)
-
-    val weight = 1
-
-    SparkHadoopUtil.get.conf.setBoolean("parquet.column.single", true)
-
-  //  callPurge
-    setConfParameters
-
-    val lineitemData = sqlContext.read.parquet(parentPath + "/lineitem")
-    lineitemData.registerTempTable("lineitem")
-
-    val ordersData = sqlContext.read.parquet(parentPath + "/orders")
-    ordersData.registerTempTable("orders")
-
-    val customerData = sqlContext.read.parquet(parentPath + "/customer")
-    customerData.registerTempTable("customer")
-
-    val nationData = sqlContext.read.parquet(parentPath + "/nation")
-    nationData.registerTempTable("nation")
-
-    val partData = sqlContext.read.parquet(parentPath + "/part")
-    partData.registerTempTable("part")
-
-    val partsuppData = sqlContext.read.parquet(parentPath + "/partsupp")
-    partsuppData.registerTempTable("partsupp")
-
-   // val regionData = sqlContext.read.parquet(parentPath + "/region")
-   // regionData.registerTempTable("region")
-
-    val supplierData = sqlContext.read.parquet(parentPath + "/supplier")
-    supplierData.registerTempTable("supplier")
-
-   // val data = sqlContext.read.parquet(parentPath)
-   // data.registerTempTable("denorm")
-
-    sqlContext.setConf("spark.sql.shuffle.partitions", "1")
-    val startTime = System.currentTimeMillis
-    val res = sqlContext.sql(query).foreach(x => x)
-    val end2end = System.currentTimeMillis - startTime
-
-    //  val loadTime = BenchmarkCounter.loadTimeCounter.getCount
-    //  val sortTime = BenchmarkCounter.sortTimeCounter.getCount
-    val countValue = SparkHadoopUtil.get.conf.getLong("parquet.read.count.val", -1)
-    println("count value: " + countValue)
-    val countRid = SparkHadoopUtil.get.conf.getLong("parquet.read.count.rid", -1)
-    println("count rid: " + countRid)
-
-    pw.write(
-      queryName + "\t" +
-        (end2end * weight).toLong +
-        //        (loadTime * weight).toLong + "\t" +
-        //       (sortTime * weight).toLong + "\t" +
-        "\n")
-
-    // val respath: java.io.File = new java.io.File(outputPath + "/" + queryName)
-    // val pw2: PrintWriter = new java.io.PrintWriter(new FileWriter(respath, true))
-    //  res.map(_.toString).sortBy(x => x).foreach(x => pw2.write(x + "\n"))
-
-    pw.close
-    // pw2.close
-  }
-
   def countCells(parentPath: String, queryId: Int): Unit = {
     import java.io.{FileWriter, PrintWriter, File}
     import java.nio.file.{Paths, Files}
@@ -257,7 +174,103 @@ object SkipTest {
     pw.close
   }
 
-////  def adhoc(): Unit = {
+  def testQueryNorm(parentPath: String, queryId: Int): Unit = {
+    import java.io.{FileWriter, PrintWriter, File}
+    import java.nio.file.{Paths, Files}
+
+    val queryPath: String = parentPath + "_meta/metadata.workload/newtest1_norm"
+    //  val colGroups = scala.io.Source.fromFile(parentPath + "_meta/metadata.grouping").getLines
+    val outputPath: String = parentPath + "_meta/results/"
+
+    // SparkHadoopUtil.get.conf.setBoolean("parquet.column.crack", true)
+
+    val queryContent: String = new String(Files.readAllBytes(Paths.get(queryPath)))
+    val queries: Array[String] = queryContent.split(";")
+
+    val statsPath: java.io.File = new java.io.File(outputPath + "/times")
+    statsPath.getParentFile.mkdirs
+    val pw: PrintWriter = new java.io.PrintWriter(new FileWriter(statsPath, true))
+
+    val query: String = queries(queryId).trim
+    val lines: Array[String] = query.split("\n")
+    println(query)
+    val queryName: String = lines(1).substring(2)
+
+    val weight = 1
+
+    SparkHadoopUtil.get.conf.setBoolean("parquet.column.single", true)
+
+    //  callPurge
+    setConfParameters
+    val lineitemData = sqlContext.read.parquet(parentPath + "/lineitem")
+    lineitemData.registerTempTable("lineitem")
+
+    val ordersData = sqlContext.read.parquet(parentPath + "/orders")
+    ordersData.registerTempTable("orders")
+
+    val customerData = sqlContext.read.parquet(parentPath + "/customer")
+    customerData.registerTempTable("customer")
+
+    val nationData = sqlContext.read.parquet(parentPath + "/nation")
+    nationData.registerTempTable("nation")
+
+    val partData = sqlContext.read.parquet(parentPath + "/part")
+    partData.registerTempTable("part")
+
+    val partsuppData = sqlContext.read.parquet(parentPath + "/partsupp")
+    partsuppData.registerTempTable("partsupp")
+
+    // val regionData = sqlContext.read.parquet(parentPath + "/region")
+    // regionData.registerTempTable("region")
+
+    val supplierData = sqlContext.read.parquet(parentPath + "/supplier")
+    supplierData.registerTempTable("supplier")
+
+    // val data = sqlContext.read.parquet(parentPath)
+    // data.registerTempTable("denorm")
+
+    sqlContext.setConf("spark.sql.shuffle.partitions", "1")
+    val startTime = System.currentTimeMillis
+    val res = sqlContext.sql(query).foreach(x => x)
+    val end2end = System.currentTimeMillis - startTime
+
+    //  val loadTime = BenchmarkCounter.loadTimeCounter.getCount
+    //  val sortTime = BenchmarkCounter.sortTimeCounter.getCount
+    val countValue = SparkHadoopUtil.get.conf.getLong("parquet.read.count.val", -1)
+    println("count value: " + countValue)
+    val countRid = SparkHadoopUtil.get.conf.getLong("parquet.read.count.rid", -1)
+    println("count rid: " + countRid)
+
+
+    var numVals = 0L
+    var numIds = 0L
+
+    val iter = SparkHadoopUtil.get.conf.iterator()
+    while(iter.hasNext) {
+      val entry = iter.next
+      if (entry.getKey.startsWith(("parquet.read.count.val."))) {
+        println(entry.getKey + " " + entry.getValue)
+        numVals += entry.getValue.toLong
+      }
+      if (entry.getKey.startsWith("parquet.read.count.rid.")) {
+        println(entry.getKey + " " + entry.getValue)
+        numIds += entry.getValue.toLong
+      }
+    }
+
+    pw.write(queryName + "\t" + end2end + "\t" + numVals + "\t" + numIds + "\t" + (numVals + numIds) + "\n")
+//                (loadTime * weight).toLong + "\t" +
+        //       (sortTime * weight).toLong + "\t" +
+
+    // val respath: java.io.File = new java.io.File(outputPath + "/" + queryName)
+    // val pw2: PrintWriter = new java.io.PrintWriter(new FileWriter(respath, true))
+    //  res.map(_.toString).sortBy(x => x).foreach(x => pw2.write(x + "\n"))
+
+    pw.close
+    // pw2.close
+  }
+
+  ////  def adhoc(): Unit = {
 //    SparkHadoopUtil.get.conf.setBoolean("parquet.task.side.metadata", false)
 //    SparkHadoopUtil.get.conf.set("mapred.min.split.size", "2000000000")
 //    SparkHadoopUtil.get.conf.setBoolean("parquet.column.crack", true)

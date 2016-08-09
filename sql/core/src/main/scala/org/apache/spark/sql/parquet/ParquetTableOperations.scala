@@ -557,9 +557,12 @@ private[parquet] class FilteringParquetRowInputFormat
          sys.error(s"Failed to reflectively invoke ClientSideMetadataSplitStrategy.generateSplits"))
     generateSplits.setAccessible(true)
 
+    var fileName: Path = null
     for (footer <- footers) {
       val fs = footer.getFile.getFileSystem(configuration)
-      val file = footer.getFile
+      val file: Path = footer.getFile
+      fileName = file
+      println("##################### " + file)
       val status = fileStatuses.getOrElse(file, fs.getFileStatus(file))
       val parquetMetaData = footer.getParquetMetadata
       val blocks = parquetMetaData.getBlocks
@@ -635,10 +638,13 @@ private[parquet] class FilteringParquetRowInputFormat
       }
     }
 
+    SparkHadoopUtil.get.conf.setLong("parquet.read.count.val." + fileName, totalValuesToRead)
+    SparkHadoopUtil.get.conf.setLong("parquet.read.count.rid." + fileName, totalRidsToRead)
+
     SparkHadoopUtil.get.conf.setLong("parquet.read.count.val", totalValuesToRead)
     SparkHadoopUtil.get.conf.setLong("parquet.read.count.rid", totalRidsToRead)
 
-    if (rowGroupsDropped > 0 && totalRowGroups > 0){
+    if (rowGroupsDropped > 0 && totalRowGroups > 0) {
       val percentDropped = ((rowGroupsDropped/totalRowGroups.toDouble) * 100).toInt
       logInfo(s"Dropping $rowGroupsDropped row groups that do not pass filter predicate "
         + s"($percentDropped %) !")
@@ -647,7 +653,6 @@ private[parquet] class FilteringParquetRowInputFormat
       logInfo("There were no row groups that could be dropped due to filter predicates")
     }
     splits
-
   }
 
   def getTaskSideSplits(
