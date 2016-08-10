@@ -229,7 +229,7 @@ object SkipTest {
     // val data = sqlContext.read.parquet(parentPath)
     // data.registerTempTable("denorm")
 
-    sqlContext.setConf("spark.sql.shuffle.partitions", "1")
+    sqlContext.setConf("spark.sql.shuffle.partitions", "10")
     val startTime = System.currentTimeMillis
     val res = sqlContext.sql(query).foreach(x => x)
     val end2end = System.currentTimeMillis - startTime
