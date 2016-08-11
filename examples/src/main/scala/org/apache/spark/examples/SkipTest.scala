@@ -174,6 +174,82 @@ object SkipTest {
     pw.close
   }
 
+  def testQueryDenorm(parentPath: String, queryId: Int): Unit = {
+    import java.io.{FileWriter, PrintWriter, File}
+    import java.nio.file.{Paths, Files}
+
+    val queryPath: String = parentPath + "_meta/metadata.workload/newtest1"
+    //  val colGroups = scala.io.Source.fromFile(parentPath + "_meta/metadata.grouping").getLines
+    val outputPath: String = parentPath + "_meta/results/"
+
+    // SparkHadoopUtil.get.conf.setBoolean("parquet.column.crack", true)
+
+    val queryContent: String = new String(Files.readAllBytes(Paths.get(queryPath)))
+    val queries: Array[String] = queryContent.split(";")
+
+    val statsPath: java.io.File = new java.io.File(outputPath + "/times")
+    statsPath.getParentFile.mkdirs
+    val pw: PrintWriter = new java.io.PrintWriter(new FileWriter(statsPath, true))
+
+    val query: String = queries(queryId).trim
+    val lines: Array[String] = query.split("\n")
+    println(query)
+    val queryName: String = lines(3).substring(2)
+
+    val weight = 1
+
+    SparkHadoopUtil.get.conf.setBoolean("parquet.column.single", true)
+
+    //  callPurge
+    setConfParameters
+    val data = sqlContext.read.parquet(parentPath)
+    data.registerTempTable("denorm")
+
+    // val data = sqlContext.read.parquet(parentPath)
+    // data.registerTempTable("denorm")
+
+    sqlContext.setConf("spark.sql.shuffle.partitions", "1")
+    val startTime = System.currentTimeMillis
+    val res = sqlContext.sql(query).foreach(x => x)
+    val end2end = System.currentTimeMillis - startTime
+
+    //  val loadTime = BenchmarkCounter.loadTimeCounter.getCount
+    //  val sortTime = BenchmarkCounter.sortTimeCounter.getCount
+    val countValue = SparkHadoopUtil.get.conf.getLong("parquet.read.count.val", -1)
+    println("count value: " + countValue)
+    val countRid = SparkHadoopUtil.get.conf.getLong("parquet.read.count.rid", -1)
+    println("count rid: " + countRid)
+
+
+    var numVals = 0L
+    var numIds = 0L
+
+    val iter = SparkHadoopUtil.get.conf.iterator()
+    while(iter.hasNext) {
+      val entry = iter.next
+      if (entry.getKey.startsWith(("parquet.read.count.val."))) {
+        println(entry.getKey + " " + entry.getValue)
+        numVals += entry.getValue.toLong
+      }
+      if (entry.getKey.startsWith("parquet.read.count.rid.")) {
+        println(entry.getKey + " " + entry.getValue)
+        numIds += entry.getValue.toLong
+      }
+    }
+
+    pw.write(queryName + "\t" + end2end + "\t" + numVals + "\t" + numIds + "\t" + (numVals + numIds) + "\n")
+    //                (loadTime * weight).toLong + "\t" +
+    //       (sortTime * weight).toLong + "\t" +
+
+    // val respath: java.io.File = new java.io.File(outputPath + "/" + queryName)
+    // val pw2: PrintWriter = new java.io.PrintWriter(new FileWriter(respath, true))
+    //  res.map(_.toString).sortBy(x => x).foreach(x => pw2.write(x + "\n"))
+
+    pw.close
+    // pw2.close
+  }
+
+
   def testQueryNorm(parentPath: String, queryId: Int): Unit = {
     import java.io.{FileWriter, PrintWriter, File}
     import java.nio.file.{Paths, Files}
@@ -377,6 +453,8 @@ object SkipTest {
       countCells(parentPath, args(2).toInt)
     } else if (args(0) == "timenorm") {
       testQueryNorm(parentPath, args(2).toInt)
+    } else if (args(0) == "timede") {
+      testQueryDenorm(parentPath, args(2).toInt)
     } else {
       println("unknown command " + args(0))
     }
