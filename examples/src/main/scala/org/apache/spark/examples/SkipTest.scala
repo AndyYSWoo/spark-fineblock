@@ -86,17 +86,35 @@ object SkipTest {
 
 //  val loadTime = BenchmarkCounter.loadTimeCounter.getCount
 //  val sortTime = BenchmarkCounter.sortTimeCounter.getCount
-    val countValue = SparkHadoopUtil.get.conf.getLong("parquet.read.count.val", -1)
-    println("count value: " + countValue)
-    val countRid = SparkHadoopUtil.get.conf.getLong("parquet.read.count.rid", -1)
-    println("count rid: " + countRid)
+//    val countValue = SparkHadoopUtil.get.conf.getLong("parquet.read.count.val", -1)
+//    println("count value: " + countValue)
+//    val countRid = SparkHadoopUtil.get.conf.getLong("parquet.read.count.rid", -1)
+//    println("count rid: " + countRid)
+//
+    var numVals = 0L
+    var numIds = 0L
 
-    pw.write(
-      queryName + "\t" +
-        (end2end * weight).toLong +
-//        (loadTime * weight).toLong + "\t" +
-//       (sortTime * weight).toLong + "\t" +
-      "\n")
+    val iter = SparkHadoopUtil.get.conf.iterator()
+    while(iter.hasNext) {
+      val entry = iter.next
+      if (entry.getKey.startsWith(("parquet.read.count.val."))) {
+        println(entry.getKey + " " + entry.getValue)
+        numVals += entry.getValue.toLong
+      }
+      if (entry.getKey.startsWith("parquet.read.count.rid.")) {
+        println(entry.getKey + " " + entry.getValue)
+        numIds += entry.getValue.toLong
+      }
+    }
+
+    pw.write(queryName + "\t" + end2end + "\t" + numVals + "\t" + numIds + "\t" + (numVals + numIds) + "\n")
+
+//    pw.write(
+//      queryName + "\t" +
+//        (end2end * weight).toLong +
+////        (loadTime * weight).toLong + "\t" +
+////       (sortTime * weight).toLong + "\t" +
+//      "\n")
 
    // val respath: java.io.File = new java.io.File(outputPath + "/" + queryName)
    // val pw2: PrintWriter = new java.io.PrintWriter(new FileWriter(respath, true))
@@ -106,6 +124,7 @@ object SkipTest {
    // pw2.close
   }
 
+  //deprecated
   def countCells(parentPath: String, queryId: Int): Unit = {
     import java.io.{FileWriter, PrintWriter, File}
     import java.nio.file.{Paths, Files}
