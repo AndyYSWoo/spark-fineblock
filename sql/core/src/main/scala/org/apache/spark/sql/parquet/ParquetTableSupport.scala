@@ -69,8 +69,8 @@ private[parquet] class RowReadSupport extends ReadSupport[Row] with Logging {
     // Note: this very much imitates AvroParquet
     val parquetSchema = readContext.getRequestedSchema
     var schema: Seq[Attribute] = null
-
-    if (SparkHadoopUtil.get.conf.getBoolean("parquet.column.crack", false)
+    
+    if (conf.getBoolean("parquet.column.crack", false)
       && parquetSchema != null) {
       // for cracking only
       val readSchema = ParquetTypesConverter.convertFromString(
