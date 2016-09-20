@@ -70,6 +70,7 @@ object SkipTest {
     //val weight: Double = lines(2).substring(4).toDouble
     val weight = 1
 
+    // what's this line for?
     val countGroups = colGroups.filter(x => x.split(",").intersect(columnString.split(",")).size > 0).size
     if (countGroups == 1) {
       SparkHadoopUtil.get.conf.setBoolean("parquet.column.single", true)
