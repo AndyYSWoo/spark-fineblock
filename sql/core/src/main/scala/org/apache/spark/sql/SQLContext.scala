@@ -833,7 +833,7 @@ class SQLContext(@transient val sparkContext: SparkContext)
       HashJoin ::                     // one case: use merge join?
       InMemoryScans ::                // plan scans in memory
       ParquetOperations ::            // ***PARQUET TABLE SCAN!!!***
-      BasicOperators ::               // all operations, note REPARTITION
+      BasicOperators ::               // all operations, note *REPARTITION*
       CartesianProduct ::             // cartesian join
       BroadcastNestedLoopJoin :: Nil) // use nestedLoop as join implementation?
 
