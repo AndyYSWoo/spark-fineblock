@@ -751,8 +751,8 @@ class SQLContext(@transient val sparkContext: SparkContext)
    * @group basic
    * @since 1.3.0
    */
-  def sql(sqlText: String): DataFrame = {
-    DataFrame(this, parseSql(sqlText))
+  def qsql(sqlText: String): DataFrame = {
+    DataFrame(this, parseSql(sqlText))// parseSql: from sql literal to tree representation
   }
 
   /**
@@ -825,17 +825,17 @@ class SQLContext(@transient val sparkContext: SparkContext)
 
     def strategies: Seq[Strategy] =
       experimental.extraStrategies ++ (
-      DataSourceStrategy ::
-      DDLStrategy ::
-      TakeOrdered ::
-      HashAggregation ::
-      LeftSemiJoin ::
-      HashJoin ::
-      InMemoryScans ::
-      ParquetOperations ::
-      BasicOperators ::
-      CartesianProduct ::
-      BroadcastNestedLoopJoin :: Nil)
+      DataSourceStrategy ::           // plan scans over DataSource
+      DDLStrategy ::                  // Data Definition Lang, create table related
+      TakeOrdered ::                  // LIMIT
+      HashAggregation ::              // AggregatePartial
+      LeftSemiJoin ::                 // use broadcast hash join?
+      HashJoin ::                     // one case: use merge join?
+      InMemoryScans ::                // plan scans in memory
+      ParquetOperations ::            // ***PARQUET TABLE SCAN!!!***
+      BasicOperators ::               // all operations, note REPARTITION
+      CartesianProduct ::             // cartesian join
+      BroadcastNestedLoopJoin :: Nil) // use nestedLoop as join implementation?
 
     /**
      * Used to build table scan operators where complex projection and filtering are done using
@@ -927,20 +927,23 @@ class SQLContext(@transient val sparkContext: SparkContext)
    * access to the intermediate phases of query execution for developers.
    */
   @DeveloperApi
-  protected[sql] class QueryExecution(val logical: LogicalPlan) {
+  protected[sql] class QueryExecution(val logical: LogicalPlan) { // logical is just a tree
     def assertAnalyzed(): Unit = analyzer.checkAnalysis(analyzed)
 
-    lazy val analyzed: LogicalPlan = analyzer.execute(logical)
-    lazy val withCachedData: LogicalPlan = {
+    lazy val analyzed: LogicalPlan = analyzer.execute(logical)    // after analyzer, analyzed is resolved
+                                                                  // & bound to reference
+
+    lazy val withCachedData: LogicalPlan = {                      // cache, don't care
       assertAnalyzed()
       cacheManager.useCachedData(analyzed)
     }
     lazy val optimizedPlan: LogicalPlan = optimizer.execute(withCachedData)
-
+                                                                  // optimizedPlan: op reorder, constant folding
+                                                                  // etc. logical optimization & re-arrangement
     // TODO: Don't just pick the first one...
     lazy val sparkPlan: SparkPlan = {
       SparkPlan.currentContext.set(self)
-      planner.plan(optimizedPlan).next()
+      planner.plan(optimizedPlan).next()                          // examine strategies in SparkPlanner one by one
     }
     // executedPlan should not be used to initialize any SparkPlan. It should be
     // only used for execution.
