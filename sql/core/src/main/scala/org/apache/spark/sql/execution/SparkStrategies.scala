@@ -224,6 +224,7 @@ private[sql] abstract class SparkStrategies extends QueryPlanner[SparkPlan] {
       case logical.InsertIntoTable(
           table: ParquetRelation, partition, child, overwrite, ifNotExists) =>
         InsertIntoParquetTable(table, planLater(child), overwrite) :: Nil
+
       case PhysicalOperation(projectList, filters: Seq[Expression], relation: ParquetRelation) =>
         val partitionColNames = relation.partitioningAttributes.map(_.name).toSet
         val filtersToPush = filters.filter { pred => // filter condition in query
