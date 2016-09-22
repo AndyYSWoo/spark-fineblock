@@ -751,7 +751,7 @@ class SQLContext(@transient val sparkContext: SparkContext)
    * @group basic
    * @since 1.3.0
    */
-  def qsql(sqlText: String): DataFrame = {
+  def sql(sqlText: String): DataFrame = {
     DataFrame(this, parseSql(sqlText))// parseSql: from sql literal to tree representation
   }
 
