@@ -84,7 +84,7 @@ private[sql] case class ParquetTableScan(
 
     val sc = sqlContext.sparkContext
     val job = new Job(sc.hadoopConfiguration)
-    ParquetInputFormat.setReadSupportClass(job, classOf[RowReadSupport])
+    ParquetInputFormat.setReadSupportClass(job, classOf[RowReadSupport])  // note RowReadSupport and ParquetInputFormat
 
     val conf: Configuration = ContextUtil.getConfiguration(job)
 
@@ -122,7 +122,7 @@ private[sql] case class ParquetTableScan(
     val baseRDD =
       new org.apache.spark.rdd.NewHadoopRDD(
         sc,
-        classOf[FilteringParquetRowInputFormat],
+        classOf[FilteringParquetRowInputFormat],  // where shit really happens
         classOf[Void],
         classOf[Row],
         conf)
