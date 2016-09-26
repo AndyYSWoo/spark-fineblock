@@ -259,6 +259,7 @@ private[sql] abstract class SparkStrategies extends QueryPlanner[SparkPlan] {
           ParquetTableScan( // This param of pruneFilterProject is a function of type Seq[Attribute] => SparkPlan,
             _,              // While ParquetTableScan is a case class which takes params of Seq[Attribute], ParquetRelation, Seq[Expression].
             relation,       // Using _ as the first param, i.e. ParquetTableScan(_, p2, p3), makes this a partially applied function
+                            // of the type Seq[Attribute] => ParquetTableScan, note that ParquetTableScan is a subclass of SparkPlan
             if (sqlContext.conf.parquetFilterPushDown) filtersToPush else Nil)) :: Nil
 
       case _ => Nil
