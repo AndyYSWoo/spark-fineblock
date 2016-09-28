@@ -541,7 +541,8 @@ private[parquet] class FilteringParquetRowInputFormat
     val cacheMetadata = configuration.getBoolean(SQLConf.PARQUET_CACHE_METADATA, true)
 
     val splits = mutable.ArrayBuffer.empty[ParquetInputSplit]
-    val filter: Filter = ParquetInputFormat.getFilter(configuration)
+    val filter: Filter = ParquetInputFormat.getFilter(configuration)  // read from conf to decide which filter to use
+                                                                      // wrap as FilterPredicateCompat object
     var rowGroupsDropped: Long = 0
     var totalRowGroups: Long = 0
 
@@ -558,14 +559,14 @@ private[parquet] class FilteringParquetRowInputFormat
     generateSplits.setAccessible(true)
 
     var fileName: Path = null
-    for (footer <- footers) {
+    for (footer <- footers) { // for each parquet file('s footer)
       val fs = footer.getFile.getFileSystem(configuration)
       val file: Path = footer.getFile
       fileName = file
       println("##################### " + file)
       val status = fileStatuses.getOrElse(file, fs.getFileStatus(file))
       val parquetMetaData = footer.getParquetMetadata
-      val blocks = parquetMetaData.getBlocks
+      val blocks = parquetMetaData.getBlocks  // get its blocks, i.e. Row Groups
       totalRowGroups = totalRowGroups + blocks.size
 
       val schemaString = readContext
