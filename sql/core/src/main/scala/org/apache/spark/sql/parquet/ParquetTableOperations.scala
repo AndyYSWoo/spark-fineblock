@@ -541,7 +541,8 @@ private[parquet] class FilteringParquetRowInputFormat
     val cacheMetadata = configuration.getBoolean(SQLConf.PARQUET_CACHE_METADATA, true)
 
     val splits = mutable.ArrayBuffer.empty[ParquetInputSplit]
-    val filter: Filter = ParquetInputFormat.getFilter(configuration)  // read from conf to decide which filter to use
+    val filter: Filter = ParquetInputFormat.getFilter(configuration)  // read from conf to decide which filter to use,
+                                                                      // see Operators etc.
                                                                       // wrap as FilterPredicateCompat object
     var rowGroupsDropped: Long = 0
     var totalRowGroups: Long = 0
